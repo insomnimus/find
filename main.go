@@ -6,10 +6,8 @@ import (
 	"os"
 	"regexp"
 	"strings"
-	"sync"
 	//"path/filepath"
 	"flag"
-	"github.com/loveleshsharma/gohive"
 	"io/ioutil"
 )
 
@@ -37,22 +35,16 @@ func showFiles() {
 	}
 }
 
-func showFinds() {
-	hive := gohive.NewFixedSizePool(5)
-	wg := new(sync.WaitGroup)
+func filterFiles() {
 	regex := regexp.MustCompile(`\.(exe|bin|png|jpg|mod|sum|lock)$`)
-	for _, f := range files {
+	tempFiles:= files
+	files= []string{}
+	for _, f := range tempFiles{
 		if regex.MatchString(f) {
 			continue
 		}
-		exe := func() {
-			defer wg.Done()
-			search(f)
-		}
-		wg.Add(1)
-		hive.Submit(exe)
+		files= append(files, f)
 	}
-	wg.Wait()
 }
 
 var liner = regexp.MustCompile(`\n|\r`)
@@ -125,5 +117,29 @@ func main() {
 	} else {
 		pattern = strings.ToLower(args[1])
 	}
-	showFinds()
+	filterFiles()
+	numberJobs:= len(files)
+	jobs:= make(chan string, numberJobs)
+	results:= make(chan bool, numberJobs)
+	workerCount:= 5
+	if workerCount > len(files){
+		workerCount = len(files)
+	}
+	for i:= 0; i<workerCount; i++{
+		go worker(jobs, results)
+	}
+	for _, f:= range files{
+		jobs<-f
+	}
+	close(jobs)
+	for i:=0; i< numberJobs; i++{
+		<-results
+	}
+}
+
+func worker(jobs <-chan string, results chan<- bool) {
+	for j:= range jobs{
+		search(j)
+		results<-true
+	}
 }

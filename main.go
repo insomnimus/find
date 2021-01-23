@@ -37,13 +37,13 @@ func showFiles() {
 
 func filterFiles() {
 	regex := regexp.MustCompile(`\.(exe|bin|png|jpg|mod|sum|lock)$`)
-	tempFiles:= files
-	files= []string{}
-	for _, f := range tempFiles{
+	tempFiles := files
+	files = []string{}
+	for _, f := range tempFiles {
 		if regex.MatchString(f) {
 			continue
 		}
-		files= append(files, f)
+		files = append(files, f)
 	}
 }
 
@@ -118,28 +118,28 @@ func main() {
 		pattern = strings.ToLower(args[1])
 	}
 	filterFiles()
-	numberJobs:= len(files)
-	jobs:= make(chan string, numberJobs)
-	results:= make(chan bool, numberJobs)
-	workerCount:= 5
-	if workerCount > len(files){
+	numberJobs := len(files)
+	jobs := make(chan string, numberJobs)
+	results := make(chan bool, numberJobs)
+	workerCount := 5
+	if workerCount > len(files) {
 		workerCount = len(files)
 	}
-	for i:= 0; i<workerCount; i++{
+	for i := 0; i < workerCount; i++ {
 		go worker(jobs, results)
 	}
-	for _, f:= range files{
-		jobs<-f
+	for _, f := range files {
+		jobs <- f
 	}
 	close(jobs)
-	for i:=0; i< numberJobs; i++{
+	for i := 0; i < numberJobs; i++ {
 		<-results
 	}
 }
 
 func worker(jobs <-chan string, results chan<- bool) {
-	for j:= range jobs{
+	for j := range jobs {
 		search(j)
-		results<-true
+		results <- true
 	}
 }

@@ -116,7 +116,7 @@ func main() {
 		return
 	}
 	if isReg {
-		temp, err := regexp.Compile("(?i)" + args[0])
+		temp, err := regexp.Compile("(?i)" + args[1])
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(2)

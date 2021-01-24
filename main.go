@@ -71,23 +71,28 @@ func search(fname string) {
 func helpMsg() {
 	fmt.Println(`file / content finder
 	usage:
-	find [-re] <path glob> [match pattern]
+	find [options] <path glob> [match pattern]
 	given one argument, shows files matching the glob pattern
 	given two arguments, finds given text in files matchinmg the glob pattern
 	
+	options are:
+	-re (do a regex search)
+	-gm (search a go method by name, the name is also part of the regex so you can extend it)
 	text search is not glob, it checks if lines contain the keyword
 	but you can pass the -re flag to do a regex search instead
 	
-	-re does not affect file filtering
-	-re is case insensitive
+	all pattern matching is case insensitive
 	`)
 }
 
 var help bool
 
+var method bool
+
 func main() {
 	flag.BoolVar(&isReg, "re", false, "use a regex pattern instead")
 	flag.BoolVar(&help, "h", false, "show usage")
+	flag.BoolVar(&method, "gm", false, "search for a go method by the name")
 	flag.Parse()
 	if help {
 		helpMsg()
@@ -95,7 +100,7 @@ func main() {
 	}
 	args := flag.Args()
 	if len(args) == 0 {
-		flag.PrintDefaults()
+		helpMsg()
 		return
 	}
 	if len(args) == 1 {
@@ -107,7 +112,15 @@ func main() {
 		showFiles()
 		return
 	}
-	if isReg {
+	if method {
+		isReg = true
+		var err error
+		reg, err = regexp.Compile(`(?i)^func\s?\([^\)]+\)[\s]*` + args[1])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+	} else if isReg && !method {
 		temp, err := regexp.Compile("(?i)" + args[1])
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)

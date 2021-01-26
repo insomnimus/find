@@ -7,8 +7,8 @@ import (
 	"regexp"
 	"strings"
 	//"path/filepath"
+	"bufio"
 	"flag"
-	"io/ioutil"
 )
 
 var (
@@ -47,23 +47,29 @@ func filterFiles() {
 	}
 }
 
-var liner = regexp.MustCompile(`\n|\r`)
-
 func search(fname string) {
-	data, err := ioutil.ReadFile(fname)
+	f, err := os.Open(fname)
 	if err != nil {
 		return
 	}
-	lines := liner.Split(string(data), -1)
-	for i, s := range lines {
-		if isReg {
+	scanner := bufio.NewScanner(f)
+	i := 0
+	s := ""
+	if isReg {
+		for scanner.Scan() {
+			i++
+			s = scanner.Text()
 			if reg.MatchString(s) {
-				fmt.Printf("%s:%d:\n%s\n", fname, i+1, s)
+				fmt.Printf("%s:%d:\n%s\n", fname, i, s)
 			}
-		} else {
-			if strings.Contains(strings.ToLower(s), pattern) {
-				fmt.Printf("%s:%d:\n%s\n", fname, i+1, s)
-			}
+		}
+		return
+	}
+	for scanner.Scan() {
+		i++
+		s = scanner.Text()
+		if strings.Contains(strings.ToLower(s), pattern) {
+			fmt.Printf("%s:%d:\n%s\n", fname, i, s)
 		}
 	}
 }

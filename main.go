@@ -1,14 +1,13 @@
 package main
 
 import (
+	"bufio"
+	"flag"
 	"fmt"
-	filepath "github.com/mattn/go-zglob"
+	globber "github.com/mattn/go-zglob"
 	"os"
 	"regexp"
 	"strings"
-	//"path/filepath"
-	"bufio"
-	"flag"
 )
 
 var (
@@ -17,15 +16,19 @@ var (
 	pattern     string
 	findFile    bool
 	isReg       bool
+	goStruct    bool
 	reg         *regexp.Regexp
 )
 
 func collectFiles() {
 	var err error
-	files, err = filepath.Glob(filePattern)
+	files, err = globber.Glob(filePattern)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
+	}
+	if method || goStruct {
+		filterGoFiles()
 	}
 }
 
@@ -45,6 +48,17 @@ func filterFiles() {
 		}
 		files = append(files, f)
 	}
+}
+
+func filterGoFiles() {
+	goer := regexp.MustCompile(`.+\.go$`)
+	var temp []string
+	for _, f := range files {
+		if goer.MatchString(f) {
+			temp = append(temp, f)
+		}
+	}
+	files = temp
 }
 
 func search(fname string) {
@@ -94,10 +108,60 @@ func helpMsg() {
 var help bool
 
 var method bool
+var commenter = regexp.MustCompile(`\s*\/\/`)
+
+func searchGoStruct(fname string) {
+	f, err := os.Open(fname)
+	if err != nil {
+		return
+	}
+	scanner := bufio.NewScanner(f)
+	i := 0
+	text := ""
+	var cC, oC int
+	var msg string
+	for scanner.Scan() {
+		text = scanner.Text()
+		i++
+		if commenter.MatchString(text) {
+			continue
+		}
+		if reg.MatchString(text) {
+			//fmt.Println(text)
+			msg += fmt.Sprintf("%s:%d:\n"+
+				"\t%s\n", fname, i, text)
+			oC += strings.Count(text, "{")
+			cC += strings.Count(text, "}")
+			if cC == oC {
+				continue
+			}
+
+			for scanner.Scan() {
+				i++
+				text = scanner.Text()
+				if commenter.MatchString(text) {
+					continue
+				}
+				oC += strings.Count(text, "{")
+				cC += strings.Count(text, "}")
+				msg += fmt.Sprintf("\t%s\n", text)
+				if cC == oC {
+					break
+				}
+			}
+			fmt.Println(msg)
+			msg = ""
+			oC = 0
+			cC = 0
+		}
+
+	}
+}
 
 func main() {
 	flag.BoolVar(&isReg, "re", false, "use a regex pattern instead")
 	flag.BoolVar(&help, "h", false, "show usage")
+	flag.BoolVar(&goStruct, "gs", false, "search for a go struct")
 	flag.BoolVar(&method, "gm", false, "search for a go method by the name")
 	flag.Parse()
 	if help {
@@ -126,7 +190,15 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(2)
 		}
-	} else if isReg && !method {
+	} else if goStruct {
+		var err error
+		reg, err = regexp.Compile(`(?i)[\s]*type[\s]+[a-zA-Z]?[a-zA-Z0-9]*` + args[1] + `[a-zA-Z0-9]*[\s]+struct[\s]*\{`)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+		isReg = true
+	} else if isReg && !method && !goStruct {
 		temp, err := regexp.Compile("(?i)" + args[1])
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -157,6 +229,13 @@ func main() {
 }
 
 func worker(jobs <-chan string, results chan<- bool) {
+	if goStruct {
+		for j := range jobs {
+			searchGoStruct(j)
+			results <- true
+		}
+		return
+	}
 	for j := range jobs {
 		search(j)
 		results <- true

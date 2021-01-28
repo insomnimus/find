@@ -79,7 +79,7 @@ func helpMsg() {
 	usage:
 	find [options] <path glob> [match pattern]
 	given one argument, shows files matching the glob pattern
-	given two arguments, finds given text in files matchinmg the glob pattern
+	given two arguments, finds given text in files matching the glob pattern
 	
 	options are:
 	-re (do a regex search)

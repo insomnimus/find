@@ -11,13 +11,14 @@ import (
 )
 
 var (
-	filePattern string
-	files       []string
-	pattern     string
-	findFile    bool
-	isReg       bool
-	goStruct    bool
-	reg         *regexp.Regexp
+	method, help bool
+	filePattern  string
+	files        []string
+	pattern      string
+	findFile     bool
+	isReg        bool
+	goStruct     bool
+	reg          *regexp.Regexp
 )
 
 func collectFiles() {
@@ -98,6 +99,8 @@ func helpMsg() {
 	options are:
 	-re (do a regex search)
 	-gm (search a go method by name, the name is also part of the regex so you can extend it)
+	-gs (search a go struct by name, print all of its body)
+	
 	text search is not glob, it checks if lines contain the keyword
 	but you can pass the -re flag to do a regex search instead
 	
@@ -105,10 +108,7 @@ func helpMsg() {
 	`)
 }
 
-var help bool
-
-var method bool
-var commenter = regexp.MustCompile(`\s*\/\/`)
+var commenter = regexp.MustCompile(`^\s*\/\/`)
 
 func searchGoStruct(fname string) {
 	f, err := os.Open(fname)
